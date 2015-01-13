@@ -1,0 +1,59 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use IPC::Run qw(run timeout);
+use Getopt::Long;
+
+sub usage {
+	print "usage: $0 [options] [--domain|-d] <domain>
+	
+  Options:
+    [--posttls-finger-bin|-c] <path-to-posttls-finger>
+    [--wrap-resolvconf|-w]          (enable resolv_wrapper)
+    [--resolv-wrapper|-l] <path>    (path to libresolv_wrapper.so)
+    [--resolv-conf|-r] <path>       (path to resolv.conf file)
+\n";
+	exit 1;
+}
+
+my $posttls_finger = '/usr/sbin/posttls-finger';
+my $resolv_wrapper = '/usr/local/lib64/libresolv_wrapper.so';
+my $resolv_conf = '/etc/check_posttls_finger-resolv.conf';
+my $wrap = 0;
+my $domain;
+
+GetOptions (
+	"posttls-finger-bin|c=s"  => \$posttls_finger,
+	"domain|d=s"  => \$domain,
+	"wrap-resolvconf|w" => \$wrap,
+	"resolv-wrapper|l=s"  => \$resolv_wrapper,
+	"resolv-conf|l=s"  => \$resolv_conf,
+) or usage();
+
+if( ! defined $domain ) {
+	usage;
+}
+
+my @cmd = ( $posttls_finger, '-l', 'dane', '-L', '1', '-c', $domain );
+my ( $in, $out, $err );
+
+run(\@cmd, \$in, \$out, \$err,
+	$wrap ? (
+		init => sub {
+			$ENV{'LD_PRELOAD'} = $resolv_wrapper;
+			$ENV{'RESOLV_WRAPPER_CONF'} = $resolv_conf;
+		}
+	) : (), timeout( 10 ) )
+	or die('could not run posttls-finger: '.$!);
+
+if( $out =~ /posttls-finger: Verified TLS connection established to (.*)$/) {
+	print "DANE OK - verified\n$1\n";
+	exit 0;
+}
+
+print "DNSSEC CRITICAL - validation failed\n";
+print "$out\n$err";
+exit 2;
+
