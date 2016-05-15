@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use IPC::Run qw(run timeout);
-use Getopt::Long;
+use Getopt::Long qw(:config pass_through);
 
 sub usage {
 	print "usage: $0 [options] [--domain|-d] <domain>
@@ -14,6 +14,11 @@ sub usage {
     [--wrap-resolvconf|-w]          (enable resolv_wrapper)
     [--resolv-wrapper|-l] <path>    (path to libresolv_wrapper.so)
     [--resolv-conf|-r] <path>       (path to resolv.conf file)
+
+  All unknown options or options passed after the
+  option terminator (--) will be passed to posttls-finger:
+
+    [-- <posttls-finger-options>]
 \n";
 	exit 1;
 }
@@ -36,7 +41,8 @@ if( ! defined $domain ) {
 	usage;
 }
 
-my @cmd = ( $posttls_finger, '-l', 'dane', '-L', '1', '-c', $domain );
+my @pf_opts = grep { $_ ne '--' } @ARGV;
+my @cmd = ( $posttls_finger, @pf_opts, '-l', 'dane', '-L', '1', '-c', $domain );
 my ( $in, $out, $err );
 
 run(\@cmd, \$in, \$out, \$err,
