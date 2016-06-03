@@ -7,7 +7,7 @@ use IPC::Run qw(run timeout);
 use Getopt::Long;
 
 sub usage {
-	print "usage: $0 [options] [--domain|-d] <domain>
+        print "usage: $0 [options] [--domain|-d] <domain> [--resolver|-d <resolver>]
 	
   Options:
     [--delv-bin|-c <path-to-delv>]
@@ -18,18 +18,20 @@ sub usage {
 my $delv = 'delv';
 my $dlv = 0;
 my $domain;
+my $resolver;
 
 GetOptions (
 	"delv-bin|c=s"  => \$delv,
 	"domain|d=s"  => \$domain,
 	"dlv|l"  => \$dlv,
+        "resolver|r=s" => \$resolver,
 ) or usage();
 
 if( ! defined $domain ) {
 	usage;
 }
 
-my @cmd = ( $delv, $dlv ? ('+dlv') : ('+nodlv'),  $domain );
+my @cmd = ( $delv, $dlv ? ('+dlv') : ('+nodlv'),  $domain, "@".$resolver);
 my ( $in, $out, $err );
 
 run(\@cmd, \$in, \$out, \$err, timeout( 10 ))
